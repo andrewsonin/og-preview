@@ -9,7 +9,7 @@ if __name__ == "__main__":
     parser.add_argument('--description', required=True, type=str, help="Description text")
     parser.add_argument('--author', required=True, type=str, help="Author name")
     parser.add_argument('--url', required=True, type=str, help="Article URL")
-    parser.add_argument('--avatar-url', required=True, type=str, help="URL-path to author avatar image")
+    parser.add_argument('--avatar', required=True, type=str, help="Path to author avatar image")
     parser.add_argument('--logo', required=True, type=str, help="Path to logo image")
     parser.add_argument('--output', required=True, type=str, help="Path to output file")
 
@@ -23,6 +23,6 @@ if __name__ == "__main__":
             url=args.url,
             output_path=args.output
         ),
-        avatar_url=args.avatar_url,
+        avatar_path=args.avatar,
         logo_path=args.logo,
     )

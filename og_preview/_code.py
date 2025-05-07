@@ -1,9 +1,7 @@
 from dataclasses import dataclass
 from os import PathLike
 from pathlib import Path
-from typing import Iterable
 
-import requests
 from PIL import Image, ImageDraw, ImageFont, ImageOps, ImageEnhance
 
 WIDTH, HEIGHT = 1200, 630
@@ -26,14 +24,17 @@ FONT_DESC = FONT_DIR / 'Poppins-Regular.ttf'
 FONT_AUTH = FONT_DIR / 'Roboto-Bold.ttf'
 FONT_URL = FONT_DIR / 'PTMono-Regular.ttf'
 
+_Path = str | bytes | PathLike[str] | PathLike[bytes]
+
 
 # --- Create an avatar with a white border and antialiasing ---
-def _create_circular_avatar_with_border(*, avatar_url: str, avatar_size: int, border_thickness: int) -> (Image, Image):
+def _create_circular_avatar_with_border(*, avatar_path: _Path, avatar_size: int, border_thickness: int) -> (Image,
+                                                                                                            Image):
     scale = 4
     full_size = (avatar_size + 2 * border_thickness) * scale
     inner_size = avatar_size * scale
 
-    avatar = Image.open(requests.get(avatar_url, stream=True).raw).convert("RGB")
+    avatar = Image.open(avatar_path).convert("RGB")
     avatar = ImageOps.fit(avatar, (inner_size, inner_size), method=Image.LANCZOS)
 
     base = Image.new("RGB", (full_size, full_size), (0, 0, 0))
@@ -57,9 +58,6 @@ def _create_circular_avatar_with_border(*, avatar_url: str, avatar_size: int, bo
     return result, final_mask
 
 
-_Path = str | bytes | PathLike[str] | PathLike[bytes]
-
-
 @dataclass(slots=True, frozen=True, kw_only=True)
 class ArticleInfo:
     title: str
@@ -69,7 +67,7 @@ class ArticleInfo:
     output_path: _Path
 
 
-def generate_og_images(*article_infos: ArticleInfo, avatar_url: str, logo_path: _Path) -> None:
+def generate_og_images(*article_infos: ArticleInfo, avatar_path: _Path, logo_path: _Path) -> None:
     image = Image.new("RGB", (WIDTH, HEIGHT), BG_COLOR)
 
     # Frame
@@ -90,7 +88,7 @@ def generate_og_images(*article_infos: ArticleInfo, avatar_url: str, logo_path: 
 
     # ======= Circled avatar with antialiasing =======
     avatar_img, avatar_mask = _create_circular_avatar_with_border(
-        avatar_url=avatar_url, avatar_size=AVATAR_SIZE, border_thickness=AVATAR_BORDER_THICKNESS
+        avatar_path=avatar_path, avatar_size=AVATAR_SIZE, border_thickness=AVATAR_BORDER_THICKNESS
     )
     avatar_pos = (PADDING, HEIGHT - PADDING - avatar_img.height)
     image.paste(avatar_img, avatar_pos, avatar_mask)
