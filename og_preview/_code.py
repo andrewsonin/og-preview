@@ -27,6 +27,59 @@ FONT_URL = FONT_DIR / 'PTMono-Regular.ttf'
 _Path = str | bytes | PathLike[str] | PathLike[bytes]
 
 
+def _wrap_text(text: str, font: ImageFont.FreeTypeFont, max_width: int) -> list[str]:
+    """Разбивает текст на строки, которые помещаются в заданную ширину."""
+    words = text.split()
+    lines = []
+    current_line = []
+
+    for word in words:
+        # Проверяем, поместится ли слово в текущую строку
+        test_line = ' '.join(current_line + [word])
+        bbox = font.getbbox(test_line)
+        text_width = bbox[2] - bbox[0]
+
+        if text_width <= max_width:
+            current_line.append(word)
+        else:
+            # Если текущая строка не пустая, добавляем её в результат
+            if current_line:
+                lines.append(' '.join(current_line))
+                current_line = [word]
+            else:
+                # Если даже одно слово не помещается, принудительно добавляем его
+                lines.append(word)
+
+    # Добавляем последнюю строку, если она не пустая
+    if current_line:
+        lines.append(' '.join(current_line))
+
+    return lines
+
+
+def _draw_multiline_text(draw: ImageDraw.ImageDraw, position: tuple[int, int],
+                         text: str, font: ImageFont.FreeTypeFont,
+                         fill: tuple[int, int, int], max_width: int,
+                         line_spacing: int = 10) -> int:
+    """Рисует многострочный текст и возвращает высоту занятого пространства."""
+    lines = _wrap_text(text, font, max_width)
+    x, y = position
+    total_height = 0
+
+    for i, line in enumerate(lines):
+        draw.text((x, y), line, font=font, fill=fill)
+        line_bbox = font.getbbox(line)
+        line_height = line_bbox[3] - line_bbox[1]
+
+        if i < len(lines) - 1:  # Не добавляем отступ после последней строки
+            y += line_height + line_spacing
+            total_height += line_height + line_spacing
+        else:
+            total_height += line_height
+
+    return total_height
+
+
 # --- Create an avatar with a white border and antialiasing ---
 def _create_circular_avatar_with_border(*, avatar_path: _Path, avatar_size: int, border_thickness: int) -> (Image,
                                                                                                             Image):
@@ -114,10 +167,15 @@ def generate_og_images(*article_infos: ArticleInfo, avatar_path: _Path, logo_pat
         draw.text((PADDING, y), title, font=title_font, fill=TEXT_COLOR)
         y += title_font.getbbox(title)[3] + 40
 
-        # Description
+        # Description with text wrapping
         if description:
-            draw.text((PADDING, y), description, font=desc_font, fill=TEXT_COLOR)
-            y += desc_font.getbbox(description)[3] + 60
+            # Максимальная ширина для описания (учитываем отступы и логотип)
+            max_desc_width = WIDTH - 2 * PADDING - logo_size[0] - 60
+            desc_height = _draw_multiline_text(
+                draw, (PADDING, y), description, desc_font,
+                TEXT_COLOR, max_desc_width, line_spacing=15
+            )
+            y += desc_height + 60
 
         # Author and link
         text_x = avatar_pos[0] + avatar_img.width + 20
