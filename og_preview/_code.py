@@ -28,13 +28,13 @@ _Path = str | bytes | PathLike[str] | PathLike[bytes]
 
 
 def _wrap_text(text: str, font: ImageFont.FreeTypeFont, max_width: int) -> list[str]:
-    """Разбивает текст на строки, которые помещаются в заданную ширину."""
+    """Splits text into lines that fit within the specified width."""
     words = text.split()
     lines = []
     current_line = []
 
     for word in words:
-        # Проверяем, поместится ли слово в текущую строку
+        # Check if the word fits in the current line
         test_line = ' '.join(current_line + [word])
         bbox = font.getbbox(test_line)
         text_width = bbox[2] - bbox[0]
@@ -42,15 +42,15 @@ def _wrap_text(text: str, font: ImageFont.FreeTypeFont, max_width: int) -> list[
         if text_width <= max_width:
             current_line.append(word)
         else:
-            # Если текущая строка не пустая, добавляем её в результат
+            # If the current line is not empty, add it to the result
             if current_line:
                 lines.append(' '.join(current_line))
                 current_line = [word]
             else:
-                # Если даже одно слово не помещается, принудительно добавляем его
+                # If even a single word doesn't fit, forcefully add it
                 lines.append(word)
 
-    # Добавляем последнюю строку, если она не пустая
+    # Add the last line if it's not empty
     if current_line:
         lines.append(' '.join(current_line))
 
@@ -61,7 +61,7 @@ def _draw_multiline_text(draw: ImageDraw.ImageDraw, position: tuple[int, int],
                          text: str, font: ImageFont.FreeTypeFont,
                          fill: tuple[int, int, int], max_width: int,
                          line_spacing: int = 10) -> int:
-    """Рисует многострочный текст и возвращает высоту занятого пространства."""
+    """Draws multiline text and returns the height of the occupied space."""
     lines = _wrap_text(text, font, max_width)
     x, y = position
     total_height = 0
@@ -71,7 +71,7 @@ def _draw_multiline_text(draw: ImageDraw.ImageDraw, position: tuple[int, int],
         line_bbox = font.getbbox(line)
         line_height = line_bbox[3] - line_bbox[1]
 
-        if i < len(lines) - 1:  # Не добавляем отступ после последней строки
+        if i < len(lines) - 1:  # Don't add spacing after the last line
             y += line_height + line_spacing
             total_height += line_height + line_spacing
         else:
@@ -80,9 +80,9 @@ def _draw_multiline_text(draw: ImageDraw.ImageDraw, position: tuple[int, int],
     return total_height
 
 
-# --- Create an avatar with a white border and antialiasing ---
 def _create_circular_avatar_with_border(*, avatar_path: _Path, avatar_size: int, border_thickness: int) -> (Image,
                                                                                                             Image):
+    """Create an avatar with a white border and antialiasing."""
     scale = 4
     full_size = (avatar_size + 2 * border_thickness) * scale
     inner_size = avatar_size * scale
@@ -139,7 +139,7 @@ def generate_og_images(*article_infos: ArticleInfo, avatar_path: _Path, logo_pat
     logo_pos = (WIDTH - logo_size[0] - 60, (HEIGHT - logo_size[1]) // 2)
     image.paste(logo, logo_pos, logo)
 
-    # ======= Circled avatar with antialiasing =======
+    # Circled avatar with antialiasing
     avatar_img, avatar_mask = _create_circular_avatar_with_border(
         avatar_path=avatar_path, avatar_size=AVATAR_SIZE, border_thickness=AVATAR_BORDER_THICKNESS
     )
@@ -162,14 +162,19 @@ def generate_og_images(*article_infos: ArticleInfo, avatar_path: _Path, logo_pat
         copied_image = image.copy()
         draw = ImageDraw.Draw(copied_image)
 
-        # Title
+        # Title with text wrapping
         y = PADDING
-        draw.text((PADDING, y), title, font=title_font, fill=TEXT_COLOR)
-        y += title_font.getbbox(title)[3] + 40
+        # Maximum width for title (considering padding and logo space)
+        max_title_width = WIDTH - 2 * PADDING - logo_size[0] - 60
+        title_height = _draw_multiline_text(
+            draw, (PADDING, y), title, title_font,
+            TEXT_COLOR, max_title_width, line_spacing=15
+        )
+        y += title_height + 40
 
         # Description with text wrapping
         if description:
-            # Максимальная ширина для описания (учитываем отступы и логотип)
+            # Maximum width for description (considering padding and logo space)
             max_desc_width = WIDTH - 2 * PADDING - logo_size[0] - 60
             desc_height = _draw_multiline_text(
                 draw, (PADDING, y), description, desc_font,
